@@ -230,21 +230,21 @@ struct MFA_GEMM: GEMM, MFA_Operation {
           byteStrideD = 0
         }
       }
-      withUnsafeTemporaryAllocation(
-        of: SIMD4<UInt64>.self, capacity: gridZ
-      ) { buffer in
-        for i in 0..<buffer.count {
+
+      let buffer = UnsafeMutableBufferPointer<SIMD4<UInt64>>.allocate(capacity: gridZ)
+      for i in 0..<buffer.count {
           buffer[i] = SIMD4(
-            UInt64(truncatingIfNeeded: i * byteStrideA),
-            UInt64(truncatingIfNeeded: i * byteStrideB),
-            UInt64(truncatingIfNeeded: i * byteStrideC),
-            UInt64(truncatingIfNeeded: i * byteStrideD))
-        }
-        
-        let bufferLength = buffer.count * MemoryLayout<SIMD4<UInt64>>.stride
-        assert(MemoryLayout<SIMD4<UInt64>>.stride == 8 * 4)
-        encoder.setBytes(buffer.baseAddress!, length: bufferLength, index: 10)
+              UInt64(truncatingIfNeeded: i * byteStrideA),
+              UInt64(truncatingIfNeeded: i * byteStrideB),
+              UInt64(truncatingIfNeeded: i * byteStrideC),
+              UInt64(truncatingIfNeeded: i * byteStrideD)
+          )
       }
+
+      let bufferLength = buffer.count * MemoryLayout<SIMD4<UInt64>>.stride
+      assert(MemoryLayout<SIMD4<UInt64>>.stride == 8 * 4)
+      let deviceBuffer = device.makeBuffer(bytes: buffer.baseAddress!, length: bufferLength, options: .storageModeShared)
+      encoder.setBuffer(deviceBuffer, offset: 0, index: 10)
     } else {
       assert(tensors.a.shape.count == 2)
       assert(tensors.b.shape.count == 2)
